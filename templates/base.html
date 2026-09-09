@@ -3,16 +3,22 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <link rel= "stylesheet" href="{% static 'style.css' %}">
+        <meta charset="UTF-8">
+        <link rel="stylesheet" href="{% static 'style.css' %}">
         {% block extra_css %}{% endblock %}
         <link rel="shortcut icon" href="{% static 'favicon/favicon.ico' %}">
         <title>HCAI project</title>
-        <style></style>
+        
+        <!-- HTMX -->
+        <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+        
+        <!-- Alpine.js -->
+        <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     </head>
-    <body>
+    <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
         <div class="grid-parent">
             {% block content %}
-            {%  endblock %}
+            {% endblock %}
         </div>
 
         {% block script %}

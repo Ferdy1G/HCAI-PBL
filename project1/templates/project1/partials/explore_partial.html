@@ -1,0 +1,211 @@
+<div class="box" style="max-width: 100%; box-sizing: border-box;">
+    {% if dataset_id %}
+        <div class="exploration-wrapper">
+            <h3>Dataset Summary</h3>
+
+            <!-- SUMMARY TABLE CONTAINER -->
+            <div style="overflow-x: auto; margin-top: 15px; max-width: 100%;">
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th style="min-width: 140px;">Metric</th>
+                            {% for col in summary_data %}
+                                <th style="text-align: center;">{{ col.name }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Type</strong></td>
+                            {% for col in summary_data %}
+                                <td style="text-align: center;"><span class="badge {{ col.type|lower }}">{{ col.type }}</span></td>
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            <td><strong>Mean / Top Value</strong></td>
+                            {% for col in summary_data %}
+                                <td style="text-align: center;">{{ col.mean_or_top }}</td>
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            <td><strong>Min</strong></td>
+                            {% for col in summary_data %}<td style="text-align: center;">{{ col.min }}</td>{% endfor %}
+                        </tr>
+                        <tr>
+                            <td><strong>Median</strong></td>
+                            {% for col in summary_data %}<td style="text-align: center;">{{ col.median }}</td>{% endfor %}
+                        </tr>
+                        <tr>
+                            <td><strong>Max</strong></td>
+                            {% for col in summary_data %}<td style="text-align: center;">{{ col.max }}</td>{% endfor %}
+                        </tr>
+                        <tr>
+                            <td><strong>Empty / Invalid</strong></td>
+                            {% for col in summary_data %}
+                                <td style="text-align: center;">
+                                    {% if col.invalid_count > 0 %}
+                                        <span style="color: #e11d48; font-weight: bold;">{{ col.invalid_count }}</span>
+                                    {% else %}
+                                        0
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- DATA CLEANING ACTION BUTTONS -->
+            <div class="data-cleaning-bar" style="display: flex; gap: 10px; margin-top: 15px; margin-bottom: 25px;">
+                <button 
+                    class="btn btn-danger" 
+                    hx-post="{% url 'project1:clean_reset' %}" 
+                    hx-target="#explore-tab-content"
+                    hx-confirm="Are you sure you want to reset all changes back to original upload?">
+                    🔄 Reset Data
+                </button>
+
+                <button 
+                    class="btn btn-warning" 
+                    hx-post="{% url 'project1:clean_drop_nulls' %}" 
+                    hx-target="#explore-tab-content">
+                    🗑️ Delete Empty Rows
+                </button>
+
+                <button 
+                    class="btn btn-primary" 
+                    hx-post="{% url 'project1:clean_fill_missing' %}" 
+                    hx-target="#explore-tab-content">
+                    ✨ Fill Empty Fields (Mean/Top)
+                </button>
+            </div>
+
+            <!-- Display any cleaning errors -->
+            {% if error %}
+                <div class="alert alert-error" style="color: red; margin-bottom: 15px;">
+                    {{ error }}
+                </div>
+            {% endif %}
+
+            <hr style="margin: 25px 0; border: 0; border-top: 1px solid #e2e8f0;">
+
+            <!-- 1. DISTRIBUTION PLOT SECTION -->
+            <div style="margin-top: 15px;">
+                <h4>Column Distribution</h4>
+                <div style="margin-bottom: 15px;">
+                    <label for="dist_col" style="font-weight: 500;">Select Column: </label>
+                    <select name="dist_col" 
+                            hx-get="{% url 'project1:explore_view' %}" 
+                            hx-target="#explore-tab-content"
+                            hx-include="[name='x_col'], [name='y_col'], [name='hue_col']"
+                            style="padding: 6px 10px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                        {% for col in columns %}
+                            <option value="{{ col }}" {% if col == selected_dist_col %}selected{% endif %}>{{ col }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {% if dist_plot_url %}
+                    <div style="max-width: 650px; width: 100%;">
+                        <img src="{{ dist_plot_url }}" alt="Distribution Plot" style="width: 100%; height: auto; border-radius: 6px; border: 1px solid #e2e8f0; display: block;">
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Distribution Filter Controls -->
+            <div style="margin-top: 15px;" id="dist-filter-box">
+                <h4>Filter by Distribution</h4>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input 
+                        type="number" 
+                        step="any"
+                        name="min_value" 
+                        placeholder="Min" 
+                        style="padding: 6px 10px; border-radius: 4px; border: 1px solid #cbd5e1;"
+                    >
+                    <input 
+                        type="number" 
+                        step="any"
+                        name="max_value" 
+                        placeholder="Max" 
+                        style="padding: 6px 10px; border-radius: 4px; border: 1px solid #cbd5e1;"
+                    >
+                    <button 
+                        class="btn btn-primary"
+                        hx-post="{% url 'project1:clean_filter_distribution' %}"
+                        hx-target="#explore-tab-content"
+                        hx-include="#dist-filter-box input, [name='dist_col'], [name='x_col'], [name='y_col'], [name='hue_col']"
+                    >
+                        Apply Filter
+                    </button>
+                </div>
+            </div>
+
+            <hr style="margin: 25px 0; border: 0; border-top: 1px solid #e2e8f0;">
+
+            <!-- 2. 2D SCATTER PLOT SECTION -->
+            <div style="margin-top: 15px;">
+                <h4>Bivariate Exploration (2D Plot)</h4>
+                
+                <!-- Horizontal Dropdowns Row -->
+                <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 15px; flex-wrap: wrap;">
+                    <div>
+                        <label style="font-weight: 500;">X Axis: </label>
+                        <select name="x_col" 
+                                hx-get="{% url 'project1:explore_view' %}" 
+                                hx-target="#explore-tab-content"
+                                hx-include="[name='dist_col'], [name='y_col'], [name='hue_col']"
+                                style="padding: 6px 10px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                            {% for col in columns %}
+                                <option value="{{ col }}" {% if col == x_col %}selected{% endif %}>{{ col }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label style="font-weight: 500;">Y Axis: </label>
+                        <select name="y_col" 
+                                hx-get="{% url 'project1:explore_view' %}" 
+                                hx-target="#explore-tab-content"
+                                hx-include="[name='dist_col'], [name='x_col'], [name='hue_col']"
+                                style="padding: 6px 10px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                            {% for col in columns %}
+                                <option value="{{ col }}" {% if col == y_col %}selected{% endif %}>{{ col }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label style="font-weight: 500;">Color (Hue): </label>
+                        <select name="hue_col" 
+                                hx-get="{% url 'project1:explore_view' %}" 
+                                hx-target="#explore-tab-content"
+                                hx-include="[name='dist_col'], [name='x_col'], [name='y_col']"
+                                style="padding: 6px 10px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                            <option value="">-- None --</option>
+                            {% for col in columns %}
+                                <option value="{{ col }}" {% if col == hue_col %}selected{% endif %}>{{ col }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                {% if scatter_plot_url %}
+                    <div style="max-width: 700px; width: 100%;">
+                        <img src="{{ scatter_plot_url }}" alt="Scatter Plot" style="width: 100%; height: auto; border-radius: 6px; border: 1px solid #e2e8f0; display: block;">
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- SMALL DATASET ID AT THE BOTTOM -->
+            <div style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 10px; font-size: 11px; color: #94a3b8;">
+                Active Dataset ID: <code>{{ dataset_id }}</code>
+            </div>
+        </div>
+
+    {% elif error %}
+        <p style="color: red;">{{ error }}</p>
+    {% else %}
+        <p style="color: #64748b;">Please upload a CSV file in the Upload tab to view dataset statistics.</p>
+    {% endif %}
+</div>

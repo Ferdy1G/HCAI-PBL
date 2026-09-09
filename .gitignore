@@ -1,3 +1,7 @@
+/media/datasets
+/media/plots
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

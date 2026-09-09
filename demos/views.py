@@ -11,7 +11,7 @@ from .forms import CSVUploadForm
 from django.http import HttpResponse, JsonResponse
 
 def index(request):
-    return HttpResponse("Welcome to Project 1!")
+    return HttpResponse("Welcome to the demo")
 
 
 def upload_csv(request):
