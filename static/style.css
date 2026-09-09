@@ -77,15 +77,18 @@ button{
   background-color: #275CB2;
   color: white;
   cursor: pointer;
-  width: 30%;
   opacity: 0.8;
-  height:45px;
+  width: auto;
+  height: auto;
+  min-height: 38px;
+  padding: 10px 20px;
   border: none;
-  border-radius: 2px;
-  margin-left: auto;
-  margin-right: auto;
+  border-radius: 4px;
+  margin-left: 0;
+  margin-right: 0;
   display: table;
-  font-size: 20px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 button:hover {

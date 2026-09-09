@@ -3,9 +3,10 @@ from django.http import HttpResponse
 from django.views.decorators.http import require_POST
 import pandas as pd
 import time
+import numpy as np
 
 from .forms import CSVUploadForm
-from .models import Dataset
+from .models import Dataset, TrainedModel
 from .datamanager import (
     upload_parsing,
     get_dataset_summary,
@@ -16,6 +17,7 @@ from .datamanager import (
     impute_missing_values,
     filter_out_of_distribution
 )
+from .trainer import ModelTrainer, generate_decision_boundary_plot
 
 
 def workspace_view(request):
@@ -182,7 +184,175 @@ def clean_filter_distribution_view(request):
     return explore_view(request)
 
 
+def get_or_create_session_seed(request):
+    """Ensures a stable, reproducible split seed exists for the user session."""
+    if 'split_seed' not in request.session:
+        import random
+        request.session['split_seed'] = random.randint(1000, 9999)
+    return request.session['split_seed']
+
+
 def train_view(request):
-    """ View called when clicking the Training tab """
+    """Renders the Training Tab configuration form."""
     dataset_id = request.session.get('active_dataset_id')
-    return HttpResponse(f"<p>Training configured for Dataset ID: {dataset_id}</p>")
+    print(f"Training view accessed for dataset ID: {dataset_id}")
+
+    if not dataset_id:
+        return render(request, 'project1/partials/train_partial.html', {'dataset_id': None})
+
+    try:
+        dataset = Dataset.objects.get(id=dataset_id)
+        df = pd.read_parquet(dataset.working_file_path)
+
+        columns = df.columns.tolist()
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        categorical_cols = df.select_dtypes(exclude=[np.number]).columns.tolist()
+
+    except Exception as e:
+        print(f"Failed with error: {str(e)}")
+        return render(request, 'project1/partials/train_partial.html', {
+            'dataset_id': dataset_id,
+            'error': f"Failed to load dataset: {str(e)}"
+        })
+
+    context = {
+        'dataset_id': dataset_id,
+        'columns': columns,
+        'numeric_cols': numeric_cols,
+        'categorical_cols': categorical_cols,
+    }
+
+    return render(request, 'project1/partials/train_partial.html', context)
+
+
+def run_training_view(request):
+    """Executes model training when user submits the form."""
+    if request.method != 'POST':
+        return HttpResponse("Method not allowed", status=405)
+
+    dataset_id = request.session.get('active_dataset_id')
+    if not dataset_id:
+        return render(request, 'project1/partials/results_partial.html', {
+            'error': 'No active dataset found. Please upload or select a dataset.'
+        })
+
+    try:
+        dataset = Dataset.objects.get(id=dataset_id)
+        df = pd.read_parquet(dataset.working_file_path)
+
+        # 1. Gather core configuration parameters
+        mode = request.POST.get('mode', 'basic')
+        target_col = request.POST.get('target_column')
+        algo_name = request.POST.get('algorithm', 'dt')
+
+        if not target_col:
+            return render(request, 'project1/partials/results_partial.html', {
+                'error': 'Please select a target column to predict.'
+            })
+
+        # 2. Extract splits (Holdout/Validation split is ALWAYS taken from slider)
+        val_split_val = float(request.POST.get('val_split', 15))
+        holdout_pct = val_split_val / 100.0
+
+        if mode == 'basic':
+            test_pct = 0.20
+        else:
+            test_split_val = float(request.POST.get('test_split', 20))
+            test_pct = test_split_val / 100.0
+
+        # 3. Extract hyperparameters
+        hyperparams = {
+            'max_depth': request.POST.get('max_depth'),
+            'min_samples_split': request.POST.get('min_samples_split', 2),
+            'criterion': request.POST.get('criterion'),
+            'n_neighbors': request.POST.get('n_neighbors', 5),
+            'weights': request.POST.get('weights', 'uniform'),
+            'metric': request.POST.get('metric', 'minkowski'),
+            'max_iter': request.POST.get('max_iter', 1000),
+            'c_param': request.POST.get('c_param', 1.0),
+        }
+
+        # Clean out None values
+        hyperparams = {k: v for k, v in hyperparams.items() if v is not None}
+
+        # 4. Get seed
+        seed = get_or_create_session_seed(request)
+
+        # 5. Train via ModelTrainer service
+        trainer = ModelTrainer(df=df, target_col=target_col, seed=seed)
+        run_output = trainer.train_and_eval(
+            algo_name=algo_name,
+            params=hyperparams,
+            holdout_pct=holdout_pct,
+            test_pct=test_pct
+        )
+
+        # Extract metrics safely regardless of whether run_output is flat or nested
+        metrics = run_output.get('metrics', run_output)
+
+        # 6. Persist run to database
+        trained_model = TrainedModel.objects.create(
+            dataset=dataset,
+            algorithm=algo_name,
+            target_column=target_col,
+            hyperparameters={
+                'mode': mode,
+                'holdout_pct': holdout_pct,
+                'test_pct': test_pct,
+                'seed': seed,
+                **hyperparams
+            },
+            metrics=metrics
+        )
+
+        # 7. Generate 2D Decision Boundary Plot
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        feature_cols = [c for c in numeric_cols if c != target_col]
+
+        x_col = request.POST.get('x_col')
+        y_col = request.POST.get('y_col')
+
+        if not x_col and len(feature_cols) > 0:
+            x_col = feature_cols[0]
+        if not y_col:
+            y_col = feature_cols[1] if len(feature_cols) > 1 else (feature_cols[0] if len(feature_cols) > 0 else None)
+
+        decision_plot_url = None
+        
+        # Check for model/estimator in either flat dictionary or nested keys
+        estimator = run_output.get('estimator') or run_output.get('model')
+        X_train = run_output.get('X_train')
+        y_train = run_output.get('y_train')
+        X_holdout = run_output.get('X_holdout')
+        y_holdout = run_output.get('y_holdout')
+
+        if x_col and y_col and estimator is not None and X_train is not None:
+            is_class = (trainer.problem_type == 'classification')
+            decision_plot_url = generate_decision_boundary_plot(
+                model=estimator,
+                X_train=X_train,
+                y_train=y_train,
+                X_holdout=X_holdout,
+                y_holdout=y_holdout,
+                x_col=x_col,
+                y_col=y_col,
+                target_col=target_col,
+                is_classification=is_class
+            )
+
+        return render(request, 'project1/partials/results_partial.html', {
+            'run': trained_model,
+            'results': metrics,
+            'decision_plot_url': decision_plot_url,
+            'feature_cols': feature_cols,
+            'x_col': x_col,
+            'y_col': y_col,
+            'target_col': target_col,
+            'algo_name': algo_name,
+        })
+
+    except Exception as e:
+        print(f"Training failed with error: {str(e)}")
+        return render(request, 'project1/partials/results_partial.html', {
+            'error': f"Training failed: {str(e)}"
+        })

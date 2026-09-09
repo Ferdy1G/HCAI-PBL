@@ -1,40 +1,42 @@
 <!-- Outer wrapper with id="upload-partial-wrapper" -->
-<div id="upload-partial-wrapper" class="box">
-    <div class="title-container">
-        <div class="title">Upload a CSV File</div>
-    </div>
+<div class="box" style="max-width: 100%; box-sizing: border-box;">
+    <div id="upload-partial-wrapper" class="box">
+        <div class="title-container">
+            <div class="title">Upload a CSV File</div>
+        </div>
 
-    <div class="main-text">
-        <!-- Make sure hx-target points to #upload-partial-wrapper -->
-        <form hx-post="{% url 'project1:upload_csv' %}" 
-              hx-target="#upload-partial-wrapper" 
-              hx-swap="outerHTML"
-              enctype="multipart/form-data">
-            {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit">Upload</button>
-        </form>
+        <div class="main-text">
+            <!-- Make sure hx-target points to #upload-partial-wrapper -->
+            <form hx-post="{% url 'project1:upload_csv' %}" 
+                hx-target="#upload-partial-wrapper" 
+                hx-swap="outerHTML"
+                enctype="multipart/form-data">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit">Upload</button>
+            </form>
 
-        {% if numeric_columns %}
-            <h4>Numeric Columns:</h4>
-            <ul>
-                {% for column, avg in averages.items %}
-                    <li>{{ column }}: {{ avg }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
+            {% if numeric_columns %}
+                <h4>Numeric Columns:</h4>
+                <ul>
+                    {% for column, avg in averages.items %}
+                        <li>{{ column }}: {{ avg }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
 
-        {% if non_numeric_columns %}
-            <h4>Non-Numeric Columns:</h4>
-            <ul>
-                {% for column, count in class_counts.items %}
-                    <li>{{ column }}: {{ count }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
+            {% if non_numeric_columns %}
+                <h4>Non-Numeric Columns:</h4>
+                <ul>
+                    {% for column, count in class_counts.items %}
+                        <li>{{ column }}: {{ count }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
 
-        {% if error %}
-            <p style="color: red;">{{ error }}</p>
-        {% endif %}
+            {% if error %}
+                <p style="color: red;">{{ error }}</p>
+            {% endif %}
+        </div>
     </div>
 </div>

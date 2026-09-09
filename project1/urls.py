@@ -8,6 +8,7 @@ urlpatterns = [
     path('upload/', views.upload_csv, name='upload_csv'),
     path('explore/', views.explore_view, name='explore_view'),
     path('train/', views.train_view, name='train_view'),
+    path('train/run/', views.run_training_view, name='run_training'),
     
     # Data Cleaning Routes
     path('clean/reset/', views.clean_reset_view, name='clean_reset'),

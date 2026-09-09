@@ -62,21 +62,21 @@
                     hx-post="{% url 'project1:clean_reset' %}" 
                     hx-target="#explore-tab-content"
                     hx-confirm="Are you sure you want to reset all changes back to original upload?">
-                    🔄 Reset Data
+                    Reset Data
                 </button>
 
                 <button 
                     class="btn btn-warning" 
                     hx-post="{% url 'project1:clean_drop_nulls' %}" 
                     hx-target="#explore-tab-content">
-                    🗑️ Delete Empty Rows
+                    Delete Empty Rows
                 </button>
 
                 <button 
                     class="btn btn-primary" 
                     hx-post="{% url 'project1:clean_fill_missing' %}" 
                     hx-target="#explore-tab-content">
-                    ✨ Fill Empty Fields (Mean/Top)
+                    Fill Empty Fields (Mean/Top)
                 </button>
             </div>
 
