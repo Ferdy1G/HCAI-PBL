@@ -9,7 +9,7 @@
             class="tab-btn" 
             :class="{ 'active': activeTab === 'upload' }" 
             @click="activeTab = 'upload'">
-            1. Upload
+            Upload
         </button>
         <button 
             class="tab-btn" 
@@ -17,7 +17,7 @@
             @click="activeTab = 'explore'"
             hx-get="{% url 'project1:explore_view' %}" 
             hx-target="#explore-tab-content">
-            2. Exploration
+            Exploration
         </button>
         <button 
             class="tab-btn" 
@@ -25,7 +25,7 @@
             @click="activeTab = 'train'"
             hx-get="{% url 'project1:train_view' %}" 
             hx-target="#train-tab-content">
-            3. Training
+            Training
         </button>
     </div>
 

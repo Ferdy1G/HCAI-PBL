@@ -19,6 +19,7 @@ def index(request):
     projects = [
         {"name": "demos", "url_name": "demos:index"},
         {"name": "Project 1", "url_name": "project1:workspace_view"},
+        {"name": "Project 2", "url_name": "project2:index"},
     ]
     
     context = { 

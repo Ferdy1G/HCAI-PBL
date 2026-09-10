@@ -1,0 +1,335 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="box" style="max-width: 100%; box-sizing: border-box;">
+    <div x-data="{
+        model: '{{ selected_model|default:"dt" }}',
+        lambda: parseFloat('{{ lambda_val|default:"0.05" }}'),
+        sampleId: '',
+        sample: null,
+        counterfactual: null,
+        errorMessage: null,
+        numSamples: 50,
+        targetClass: 'Adelie',
+
+        async loadSample() {
+            if (this.sampleId === '') { 
+                this.sample = null; 
+                this.counterfactual = null;
+                this.errorMessage = null;
+                return; 
+            }
+            const res = await fetch(`{% url 'project2:get_sample' %}?sample_id=${this.sampleId}`);
+            const data = await res.json();
+            this.sample = data.sample || null;
+            this.counterfactual = null;
+            this.errorMessage = null;
+        },
+
+        async generateCounterfactuals() {
+            this.errorMessage = null;
+            this.counterfactual = null;
+
+            if (!this.sampleId) {
+                this.errorMessage = 'Please enter a valid Sample ID first.';
+                return;
+            }
+
+            const res = await fetch('{% url "project2:generate_counterfactuals" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    sample_id: this.sampleId,
+                    num_samples: this.numSamples,
+                    target_class: this.targetClass
+                })
+            });
+
+            const data = await res.json();
+            if (data.counterfactual && data.counterfactual.error) {
+                this.errorMessage = data.counterfactual.error;
+            } else if (data.counterfactual) {
+                this.counterfactual = data.counterfactual;
+            }
+        }
+    }">
+
+        <div id="display-wrapper" class="box">
+            <div class="title-container">
+                <div class="title">machine learning interpretability</div>
+            </div>
+
+            <div class="main-text">
+                <form method="POST" action="{% url 'project2:train_model' %}">
+                    {% csrf_token %}
+
+                    <input type="hidden" name="model" :value="model">
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 10px;">
+                        <h3 style="margin: 0;">Model Selection</h3>
+                        <div style="display: flex; gap: 5px; background: #e2e8f0; padding: 4px; border-radius: 6px;">
+                            <button 
+                                type="button"
+                                @click="model = 'dt'" 
+                                :style="{
+                                    background: model === 'dt' ? '#275CB2' : 'transparent',
+                                    color: model === 'dt' ? '#ffffff' : '#334155',
+                                    display: 'inline-block',
+                                    margin: '0',
+                                    padding: '8px 16px',
+                                    whiteSpace: 'nowrap',
+                                }">
+                                Decision Tree
+                            </button>
+                            <button 
+                                type="button"
+                                @click="model = 'lr'" 
+                                :style="{
+                                    background: model === 'lr' ? '#275CB2' : 'transparent',
+                                    color: model === 'lr' ? '#ffffff' : '#334155',
+                                    display: 'inline-block',
+                                    margin: '0',
+                                    padding: '8px 16px',
+                                    whiteSpace: 'nowrap',
+                                }">
+                                Logistical Regression
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; border-bottom: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <label style="font-weight: 600;">lambda:</label>
+                            <input 
+                                type="range" 
+                                name="lambda"
+                                min="0.001" 
+                                max="0.01" 
+                                step="0.001" 
+                                x-model="lambda" 
+                                style="cursor: pointer; accent-color: #275CB2;"
+                            >
+                            <span x-text="lambda" style="font-weight: bold; width: 45px; margin-right: 30px;"></span>
+                        </div>
+
+                        <button type="submit">train model</button>
+                    </div>
+                </form>
+
+                <!-- Model Evaluation Output -->
+                {% if results %}
+                <div style="margin-top: 30px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px;">
+                    <h3 style="margin-top: 0;">Evaluation Results ({{ results.model_name }})</h3>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                        <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                            <small style="color: #64748b;">Optimal {{ results.best_param_name }}</small>
+                            <div style="font-size: 1.4rem; font-weight: bold;">{{ results.best_param_val }}</div>
+                        </div>
+                        <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                            <small style="color: #64748b;">Test Accuracy</small>
+                            <div style="font-size: 1.4rem; font-weight: bold; color: #16a34a;">{{ results.test_accuracy }}%</div>
+                        </div>
+                        <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                            <small style="color: #64748b;">{{ results.complexity_penalty }}</small>
+                            <div style="font-size: 1.4rem; font-weight: bold;">{{ results.complexity }}</div>
+                        </div>
+                        <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                            <small style="color: #64748b;">Penalized Score</small>
+                            <div style="font-size: 1.4rem; font-weight: bold; color: #275CB2;">{{ results.penalized_score }}</div>
+                        </div>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 20px;">
+                        <h4>Regularization Curve</h4>
+                        <img src="{{ results.plot_url }}" alt="Optimization Plot" style="max-width: 100%; border-radius: 6px;">
+                    </div>
+
+                    {% if results.model_viz_url %}
+                    <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px dashed #cbd5e1;">
+                        {% if selected_model == 'dt' %}
+                            <h4>Optimal Decision Tree Structure</h4>
+                        {% else %}
+                            <h4>L1 Regularized Feature Weights</h4>
+                        {% endif %}
+                        <img src="{{ results.model_viz_url }}" alt="Model Visualization" style="max-width: 100%; border-radius: 6px;">
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Counterfactual Examples Block -->
+                <div style="margin-top: 30px;" id="dist-filter-box">
+                    <h4>Counterfactual Examples</h4>
+                    
+                    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
+                        <input 
+                            type="number" 
+                            x-model="sampleId" 
+                            @input.debounce.250ms="loadSample()"
+                            placeholder="Sample ID (0-332)"
+                        >
+                    </div>
+
+                    <!-- Original Sample Table -->
+                    <template x-if="sample">
+                        <div style="margin-bottom: 20px;">
+                            <h5 style="margin-bottom: 8px; color: #475569;">Original Instance</h5>
+                            <table class="sample-table">
+                                <thead>
+                                    <tr>
+                                        <th>Species</th>
+                                        <th>Island</th>
+                                        <th>Bill Length</th>
+                                        <th>Bill Depth</th>
+                                        <th>Flipper Length</th>
+                                        <th>Body Mass</th>
+                                        <th>Sex</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td x-text="sample.species"></td>
+                                        <td x-text="sample.island"></td>
+                                        <td x-text="`${Number(sample.bill_length_mm).toFixed(1)} mm`"></td>
+                                        <td x-text="`${Number(sample.bill_depth_mm).toFixed(1)} mm`"></td>
+                                        <td x-text="`${Number(sample.flipper_length_mm).toFixed(1)} mm`"></td>
+                                        <td x-text="`${Number(sample.body_mass_g).toFixed(0)} g`"></td>
+                                        <td x-text="sample.sex"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
+
+                    <!-- Controls for generating counterfactuals -->
+                    <div style="display: flex; gap: 10px; align-items: center; margin-top: 15px; margin-bottom: 15px;">
+                        <label>Iterations:</label>
+                        <input type="number" x-model="numSamples" placeholder="N samples" style="width: 90px;">
+                        
+                        <label for="target_class">Target: </label>
+                        <select id="target_class" x-model="targetClass">
+                            <option value="Adelie">Adelie</option>
+                            <option value="Chinstrap">Chinstrap</option>
+                            <option value="Gentoo">Gentoo</option>
+                        </select>
+                        
+                        <button type="button" @click="generateCounterfactuals()" style="background: #275CB2; color: white;">Generate</button>
+                    </div>
+
+                    <!-- Error Output -->
+                    <template x-if="errorMessage">
+                        <div style="padding: 12px; background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; border-radius: 6px; margin-top: 15px;" x-text="errorMessage"></div>
+                    </template>
+
+                    <!-- Counterfactual Candidate Table -->
+                    <template x-if="counterfactual">
+                        <div style="margin-top: 20px;">
+                            <h5 style="margin-bottom: 8px; color: #275CB2;">Closest Counterfactual Candidate</h5>
+                            <table class="counterfactual-table">
+                                <thead>
+                                    <tr>
+                                        <th>Predicted Species</th>
+                                        <th>Island</th>
+                                        <th>Bill Length</th>
+                                        <th>Bill Depth</th>
+                                        <th>Flipper Length</th>
+                                        <th>Body Mass</th>
+                                        <th>Sex</th>
+                                        <th>MAD Distance</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td x-text="counterfactual.predicted_species" style="font-weight: bold; color: #16a34a;"></td>
+                                        <td x-text="counterfactual.island"></td>
+                                        <td x-text="`${Number(counterfactual.bill_length_mm).toFixed(1)} mm`"></td>
+                                        <td x-text="`${Number(counterfactual.bill_depth_mm).toFixed(1)} mm`"></td>
+                                        <td x-text="`${Number(counterfactual.flipper_length_mm).toFixed(1)} mm`"></td>
+                                        <td x-text="`${Number(counterfactual.body_mass_g).toFixed(0)} g`"></td>
+                                        <td x-text="counterfactual.sex"></td>
+                                        <td x-text="counterfactual.mad_distance" style="font-weight: bold; color: #275CB2;"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
+                    <template x-if="!counterfactual">
+                        <div style="height: 110px; background: white;"></div>
+                    </template>
+
+                    <!-- Partial Dependence Plots Section -->
+                    <div style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 20px;"
+                        x-data="{ 
+                            selectedCol: '{{ selected_dist_col|default:"bill_length_mm" }}',
+                            pdpUrl: '',
+                            loading: false,
+                            
+                            async updatePdp() {
+                                this.loading = true;
+                                try {
+                                    const res = await fetch(`{% url 'project2:get_pdp_plot' %}?col=${this.selectedCol}`);
+                                    const data = await res.json();
+                                    if (data.plot_url) {
+                                        this.pdpUrl = data.plot_url;
+                                    }
+                                } catch (err) {
+                                    console.error('Failed to load PDP plot:', err);
+                                } finally {
+                                    this.loading = false;
+                                }
+                            }
+                        }"
+                        x-init="updatePdp()">
+                        
+                        <h4>Partial Dependence Plot (PDP)</h4>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <label for="pdp_col_select" style="font-weight: 500;">Select Column: </label>
+                            <select id="pdp_col_select" 
+                                    x-model="selectedCol" 
+                                    @change="updatePdp()"
+                                    style="padding: 6px 10px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                                {% for col in columns %}
+                                    <option value="{{ col }}">{{ col }}</option>
+                                {% empty %}
+                                    <option value="bill_length_mm">bill_length_mm</option>
+                                    <option value="bill_depth_mm">bill_depth_mm</option>
+                                    <option value="flipper_length_mm">flipper_length_mm</option>
+                                    <option value="body_mass_g">body_mass_g</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Image / Loading Display -->
+                        <div style="max-width: 650px; width: 100%; min-height: 250px;">
+                            <template x-if="loading">
+                                <div style="height: 250px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; color: #64748b;">
+                                    Generating plot...
+                                </div>
+                            </template>
+                            
+                            <template x-if="!loading && pdpUrl">
+                                <img :src="pdpUrl" 
+                                    alt="Partial Dependence Plot" 
+                                    style="width: 100%; height: auto; border-radius: 6px; border: 1px solid #e2e8f0; display: block;">
+                            </template>
+
+                            <template x-if="!loading && !pdpUrl">
+                                <div style="height: 250px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; color: #64748b;">
+                                    Select a column to generate PDP
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

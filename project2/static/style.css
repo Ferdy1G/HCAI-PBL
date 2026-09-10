@@ -1,0 +1,37 @@
+/* Styling for penguin sample and counterfactual tables */
+.sample-table,
+.counterfactual-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    margin-bottom: 12px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: 0.95rem;
+}
+
+.sample-table th,
+.counterfactual-table th {
+    background-color: #f1f5f9;
+    color: #334155;
+    text-align: left;
+    padding: 12px 18px; /* Increased horizontal padding for column distance */
+    font-weight: 600;
+    border-bottom: 2px solid #cbd5e1;
+    white-space: nowrap;
+}
+
+.sample-table td,
+.counterfactual-table td {
+    padding: 10px 18px; /* Increased horizontal padding */
+    border-bottom: 1px solid #e2e8f0;
+    color: #1e293b;
+    white-space: nowrap;
+}
+
+.sample-table tr:last-child td,
+.counterfactual-table tr:last-child td {
+    border-bottom: none;
+}
