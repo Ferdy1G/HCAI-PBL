@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="box" style="max-width: 900px; margin: 30px auto;" x-data="{
+    movies: [],
+    loading: true,
+
+    async loadPair() {
+        this.loading = true;
+        const res = await fetch('{% url 'project4:get_candidates' %}?count=2');
+        const data = await res.json();
+        this.movies = data.movies;
+        this.loading = false;
+    },
+
+    async selectMovie(chosenIndex) {
+        const rejectedIndex = chosenIndex === 0 ? 1 : 0;
+        const rankedIds = [this.movies[chosenIndex].id, this.movies[rejectedIndex].id];
+        
+        const res = await fetch('{% url 'project4:submit_preference' %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ ranked_ids: rankedIds })
+        });
+        
+        const data = await res.json();
+        if (data.next_url) {
+            window.location.href = data.next_url;
+        } else {
+            this.loadPair();
+        }
+    },
+
+    async rejectMovie(index) {
+        // Replace single unknown movie
+        const res = await fetch('{% url 'project4:get_candidates' %}?count=1');
+        const data = await res.json();
+        if (data.movies.length > 0) {
+            this.movies[index] = data.movies[0];
+        }
+    }
+}" x-init="loadPair()">
+
+    <h3>Design 1: Pairwise Comparison</h3>
+    <p>Which of these two movies would you prefer to watch?</p>
+
+    <template x-if="loading">
+        <div style="text-align: center; padding: 40px;">Loading choices...</div>
+    </template>
+
+    <template x-if="!loading && movies.length === 2">
+        <div style="display: flex; gap: 20px; justify-content: center; margin-top: 20px;">
+            <template x-for="(movie, idx) in movies" :key="movie.id">
+                <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px; text-align: center; background: white;">
+                    <h4 x-text="movie.title" style="margin-top: 0;"></h4>
+                    <p x-text="`Year: ${movie.year} | IMDb: ${movie.imdb_score}`" style="color: #64748b;"></p>
+                    <p x-text="`Genres: ${movie.genres}`" style="font-size: 0.9rem;"></p>
+                    <p x-text="`Director: ${movie.director}`" style="font-size: 0.9rem; color: #475569;"></p>
+                    
+                    <button @click="selectMovie(idx)" style="width: 100%; padding: 10px; background: #275CB2; color: white; border: none; border-radius: 4px; font-weight: bold; margin-bottom: 8px; cursor: pointer;">
+                        Prefer This Movie
+                    </button>
+                    <button @click="rejectMovie(idx)" style="width: 100%; padding: 6px; background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer;">
+                        Don't Know It
+                    </button>
+                </div>
+            </template>
+        </div>
+    </template>
+</div>
+{% endblock %}

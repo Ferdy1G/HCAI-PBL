@@ -1,8 +1,9 @@
 Django==6.1.1
-matplotlib==3.11.1
+matplotlib==3.11.2
 numpy==2.5.3
+palmerpenguins==0.1.6
 pandas==3.0.5
-pyarrow==25.0.1
-scikit_learn==1.9.0
+scikit_learn==1.9.1
 seaborn==0.13.2
 
+pyarrow==25.0.1

@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="box" style="max-width: 800px; margin: 30px auto;" x-data="{
+    movies: [],
+    loading: true,
+
+    async loadList() {
+        this.loading = true;
+        const res = await fetch('{% url 'project4:get_candidates' %}?count=10');
+        const data = await res.json();
+        this.movies = data.movies;
+        this.loading = false;
+    },
+
+    moveUp(index) {
+        if (index > 0) {
+            const temp = this.movies[index];
+            this.movies[index] = this.movies[index - 1];
+            this.movies[index - 1] = temp;
+        }
+    },
+
+    moveDown(index) {
+        if (index < this.movies.length - 1) {
+            const temp = this.movies[index];
+            this.movies[index] = this.movies[index + 1];
+            this.movies[index + 1] = temp;
+        }
+    },
+
+    async removeMovie(index) {
+        // Remove item and pull 1 replacement from backend
+        this.movies.splice(index, 1);
+        const res = await fetch('{% url 'project4:get_candidates' %}?count=1');
+        const data = await res.json();
+        if (data.movies.length > 0) {
+            this.movies.push(data.movies[0]);
+        }
+    },
+
+    async submitRanking() {
+        const rankedIds = this.movies.map(m => m.id);
+        const res = await fetch('{% url 'project4:submit_preference' %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ ranked_ids: rankedIds })
+        });
+        
+        const data = await res.json();
+        if (data.next_url) {
+            window.location.href = data.next_url;
+        } else {
+            this.loadList();
+        }
+    }
+}" x-init="loadList()">
+
+    <h3>Design 2: Rank 10 Movies</h3>
+    <p>Reorder movies from 1 (Most Preferred) to 10 (Least Preferred).</p>
+
+    <template x-if="loading">
+        <div style="text-align: center; padding: 40px;">Loading movies...</div>
+    </template>
+
+    <template x-if="!loading">
+        <div>
+            <div style="margin-bottom: 15px;">
+                <template x-for="(movie, idx) in movies" :key="movie.id">
+                    <div style="display: flex; align-items: center; justify-content: space-between; border: 1px solid #cbd5e1; padding: 10px 15px; margin-bottom: 6px; border-radius: 4px; background: white;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span x-text="`#${idx + 1}`" style="font-weight: bold; color: #275CB2; width: 25px;"></span>
+                            <div>
+                                <strong x-text="movie.title"></strong>
+                                <span x-text="`(${movie.year}) - IMDb: ${movie.imdb_score}`" style="font-size: 0.85rem; color: #64748b;"></span>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 5px;">
+                            <button @click="moveUp(idx)" :disabled="idx === 0" style="padding: 4px 8px;">▲</button>
+                            <button @click="moveDown(idx)" :disabled="idx === movies.length - 1" style="padding: 4px 8px;">▼</button>
+                            <button @click="removeMovie(idx)" style="padding: 4px 8px; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; border-radius: 3px;">✕ Don't Know</button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <button @click="submitRanking()" style="width: 100%; padding: 12px; background: #16a34a; color: white; border: none; border-radius: 4px; font-weight: bold; font-size: 1rem; cursor: pointer;">
+                Confirm Ranking
+            </button>
+        </div>
+    </template>
+</div>
+{% endblock %}

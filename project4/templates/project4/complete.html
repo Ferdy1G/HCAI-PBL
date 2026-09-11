@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="box" style="max-width: 600px; margin: 50px auto; padding: 30px; text-align: center;">
+    <h2 style="color: #16a34a; margin-top: 0;">Study Completed!</h2>
+    <p style="font-size: 1.1rem; color: #334155;">
+        Thank you for participating in our preference elicitation user study.
+    </p>
+    <p style="color: #64748b; margin-bottom: 30px;">
+        Your preferences and interactions have been successfully recorded.
+    </p>
+    
+    <a href="{% url 'project4:landing' %}" 
+       style="display: inline-block; padding: 10px 20px; background: #275CB2; color: white; border-radius: 4px; text-decoration: none; font-weight: bold;">
+        Back to Home
+    </a>
+</div>
+{% endblock %}

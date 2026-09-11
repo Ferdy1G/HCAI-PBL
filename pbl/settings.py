@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     "demos",
     "project1",
     "project2",
+    "project3",
+    "project4",
 ]
 
 MIDDLEWARE = [
@@ -111,7 +113,7 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 USERDATA_DIR = os.path.join(MEDIA_ROOT, 'userdata')
-
+CSV_PATH = os.path.join(BASE_DIR, 'movie_metadata.csv')
 
 
 # Internationalization
