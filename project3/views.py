@@ -1,30 +1,10 @@
-# from django.http import HttpResponse
-
-
-# def index(request):
-#     return HttpResponse("Hello, world. You're at the polls index.")
-
-from django.http import HttpResponse
-from django.template import loader
+from django.shortcuts import render
 
 
 def index(request):
-    template = loader.get_template("home/index.html")
-    
-    
-    students = [
-        {"name": "Ferdinand Grenzing", "matriculation": "501309"},
-    ]
-    
-    projects = [
-        {"name": "demos", "url_name": "demos:index"},
-        {"name": "Project 1", "url_name": "project1:workspace_view"},
-        {"name": "Project 2", "url_name": "project2:index"},
-    ]
-    
-    context = { 
-        "students": students, 
-        "projects": projects, 
-    }
-    
-    return HttpResponse(template.render(context, request))
+    """Renders the landing page for Project 3 with the report download button."""
+    return render(
+        request,
+        "project3/index.html",
+        {"pdf_url": "https://drive.google.com/file/d/10Ul0xPsYiyhxZM-dSXkygv2X1Cnr8__g/view?usp=drive_link"},
+    )

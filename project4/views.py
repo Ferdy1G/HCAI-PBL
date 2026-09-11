@@ -25,7 +25,7 @@ def landing(request):
     return render(
         request,
         "project4/landing.html",
-        {"pdf_url": "https://drive.google.com/your-pdf-link-here"},
+        {"pdf_url": "https://drive.google.com/file/d/1rMedzLqpXULrKcLAbFke2gpHnVxI9h8f/view?usp=drive_link"},
     )
 
 def design1_pairwise(request):
