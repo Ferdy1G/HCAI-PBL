@@ -1,6 +1,9 @@
 /media/datasets
 /media/plots
-
+/experimentation/gate_transformer_10k
+/experimentation/phase2_l2d_model
+/experimentation/phase2_multihead_10k
+/experimentation/results
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
